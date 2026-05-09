@@ -291,10 +291,11 @@ def main():
   [3] 清理缓存 + 搬运（全部执行）
   [4] 逐项选择要清理的内容
   [5] 生成报告（不执行任何操作）
+  [6] 治本模式：把默认存储路径改到D盘（防止C盘再涨）
   [0] 退出
 """)
 
-    choice = input("请选择操作 [0-5]: ").strip()
+    choice = input("请选择操作 [0-6]: ").strip()
 
     if choice == "0":
         print("已退出")
@@ -382,6 +383,65 @@ def main():
                     print(f"    失败: {e}")
 
         print(f"\n  >>> 总计释放：{format_size(freed)}")
+
+    if choice == "6":
+        print_header("治本模式：修改默认存储路径到D盘（逐条确认）")
+        print("  修改后，新文件会自动存到D盘，C盘不再增长\n")
+
+        # Windows用户文件夹重定向（通过注册表）
+        import winreg
+        shell_folders_key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+
+        redirects = [
+            ("{374DE290-123F-4565-9164-39C4925E467B}", "Downloads", "下载文件夹", "D:\\小方搬家\\Downloads"),
+            ("Personal", "Documents", "文档", "D:\\小方搬家\\Documents"),
+            ("My Video", "Videos", "视频", "D:\\小方搬家\\Videos"),
+            ("My Music", "Music", "音乐", "D:\\小方搬家\\Music"),
+            ("My Pictures", "Pictures", "图片", "D:\\小方搬家\\Pictures"),
+            ("Desktop", "Desktop", "桌面", "D:\\小方搬家\\Desktop"),
+        ]
+
+        changed = 0
+        for reg_name, folder_name, desc, new_path in redirects:
+            try:
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, shell_folders_key, 0, winreg.KEY_READ)
+                current, _ = winreg.QueryValueEx(key, reg_name)
+                winreg.CloseKey(key)
+            except:
+                current = "未知"
+
+            print(f"  [{desc}]")
+            print(f"    当前路径：{current}")
+            print(f"    修改为  ：{new_path}")
+            ans = input(f"    确认修改? [y/N]: ").strip().lower()
+
+            if ans == "y":
+                try:
+                    os.makedirs(new_path, exist_ok=True)
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, shell_folders_key, 0, winreg.KEY_SET_VALUE)
+                    winreg.SetValueEx(key, reg_name, 0, winreg.REG_EXPAND_SZ, new_path)
+                    winreg.CloseKey(key)
+                    print(f"    ✓ 已修改\n")
+                    changed += 1
+                except Exception as e:
+                    print(f"    ✗ 失败: {e}\n")
+            else:
+                print(f"    - 跳过\n")
+
+        # 额外提示
+        print("  " + "-" * 50)
+        print("  以下需要手动修改（程序无法自动改）：")
+        print("  ")
+        print("  [微信] 设置 → 文件管理 → 更改存储路径到 D盘")
+        print("  [浏览器] 设置 → 下载 → 修改默认下载位置到 D盘")
+        print("  [QQ] 设置 → 文件管理 → 修改路径")
+        print("  " + "-" * 50)
+
+        if changed > 0:
+            print(f"\n  已修改 {changed} 项路径，重启电脑后生效")
+            print("  重启后新文件会自动存到D盘，C盘不再膨胀")
+        else:
+            print("\n  未做任何修改")
 
     # 清理Windows更新缓存（需要管理员）
     if is_admin() and choice in ("1", "3"):
