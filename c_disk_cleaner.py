@@ -15,7 +15,7 @@ from collections import defaultdict
 # ============ 配置 ============
 
 # 搬运目标盘（D盘有169GB空闲）
-MOVE_TARGET = "D:\\从C盘搬运"
+MOVE_TARGET = "D:\\C盘搬家"
 
 # 可以安全删除的目录（缓存/临时文件）
 SAFE_TO_DELETE = [
@@ -184,10 +184,28 @@ def print_header(text):
     print(f"{'='*60}")
 
 
+def print_logo():
+    logo = r"""
+  ╔══════════════════════════════════════════════════════════╗
+  ║                                                          ║
+  ║        ★  周 老 师 请 使 用  ★                         ║
+  ║                                                          ║
+  ║           C 盘 清 理 工 具  v1.0                        ║
+  ║                                                          ║
+  ║        搬运目标：D:\C盘搬家                             ║
+  ║        安全等级：仅清理缓存，不碰系统文件               ║
+  ║                                                          ║
+  ╚══════════════════════════════════════════════════════════╝
+"""
+    print(logo)
+
+
 def main():
     if sys.platform != "win32":
         print("此工具仅支持Windows系统")
         return
+
+    print_logo()
 
     if not is_admin():
         print("=" * 60)
