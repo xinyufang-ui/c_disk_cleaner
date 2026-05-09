@@ -15,7 +15,7 @@ from collections import defaultdict
 # ============ 配置 ============
 
 # 搬运目标盘（D盘有169GB空闲）
-MOVE_TARGET = "D:\\C盘搬家"
+MOVE_TARGET = "D:\\小方搬家"
 
 # 可以安全删除的目录（缓存/临时文件）
 SAFE_TO_DELETE = [
