@@ -302,8 +302,12 @@ def main():
         return
 
     if choice == "5":
-        # 生成报告
-        report_path = os.path.join(os.path.expanduser("~\\Desktop"), "C盘清理报告.txt")
+        # 生成报告 - 保存到exe同目录，避免桌面路径问题
+        try:
+            exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+            report_path = os.path.join(exe_dir, "C盘清理报告.txt")
+        except:
+            report_path = "C:\\C盘清理报告.txt"
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(f"C盘清理报告 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write("=" * 60 + "\n\n")
@@ -318,7 +322,9 @@ def main():
             f.write("【大文件列表】\n")
             for fp, size in large_files:
                 f.write(f"  {format_size(size):>8} | {fp}\n")
-        print(f"\n报告已保存到：{report_path}")
+        print(f"\n  报告已保存到：{report_path}")
+        print(f"  （和本程序在同一个文件夹里）")
+        input("\n按回车退出...")
         return
 
     if choice in ("1", "3"):
