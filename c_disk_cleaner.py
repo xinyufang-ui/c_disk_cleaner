@@ -23,7 +23,7 @@ SAFE_TO_DELETE = [
     (os.environ.get("TMP", ""), "系统临时文件"),
     (r"C:\Windows\Temp", "Windows临时文件"),
     (r"C:\Windows\Prefetch", "预读取缓存"),
-    (r"C:\Windows\SoftwareDistribution\Download", "Windows更新下载缓存"),
+    (r"C:\Windows\SoftwareDistribution\Download", "Windows更新下载缓存（14.9GB大头！）"),
     (r"C:\Windows\Installer\$PatchCache$", "安装补丁缓存"),
     (os.path.expanduser(r"~\AppData\Local\Temp"), "用户Temp"),
     (os.path.expanduser(r"~\AppData\Local\Microsoft\Windows\Explorer"), "缩略图缓存"),
@@ -36,6 +36,15 @@ SAFE_TO_DELETE = [
     (os.path.expanduser(r"~\AppData\Local\yarn\Cache"), "yarn缓存"),
     (os.path.expanduser(r"~\AppData\Roaming\Microsoft\Windows\Recent"), "最近文件记录"),
     (r"C:\$Recycle.Bin", "回收站"),
+    # === 周老师电脑专用：软件更新垃圾 ===
+    (os.path.expanduser(r"~\AppData\Roaming\baidu\BaiduNetdisk\AutoUpdate\Download"), "百度网盘旧更新包（2.4GB垃圾）"),
+    (os.path.expanduser(r"~\AppData\Roaming\Xmind\Electron v3\vana\auto-updater"), "Xmind历史更新包（1.8GB垃圾）"),
+    (os.path.expanduser(r"~\AppData\Local\ima.copilot\Application\138.0.7204.3560\Installer"), "腾讯AI安装缓存"),
+    (os.path.expanduser(r"~\AppData\Local\xmind-updater"), "Xmind更新器缓存"),
+    (os.path.expanduser(r"~\AppData\Roaming\kingsoft\wps\addons\data\win-i386\cef\cache"), "WPS缓存"),
+    (os.path.expanduser(r"~\AppData\Local\Microsoft\Edge\User Data\ProvenanceData"), "Edge AI模型缓存"),
+    (os.path.expanduser(r"~\AppData\Local\Microsoft\Edge\User Data\component_crx_cache"), "Edge组件缓存"),
+    (os.path.expanduser(r"~\AppData\Local\Microsoft\Olk\EBWebView\Default\Cache"), "Outlook缓存"),
 ]
 
 # 可以搬运到D盘的用户目录
