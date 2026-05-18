@@ -57,6 +57,27 @@ MOVABLE_DIRS = [
     (os.path.expanduser("~\\Desktop"), "桌面大文件"),
 ]
 
+# 系统级大头（C盘膨胀真凶，只扫描不删，每条带专门操作方法）
+# 格式：(路径, 描述, 处理建议)
+SYSTEM_BLOAT = [
+    (r"C:\hiberfil.sys",
+     "休眠文件（=物理内存大小）",
+     "不用休眠功能可关：管理员CMD运行  powercfg -h off"),
+    (r"C:\pagefile.sys",
+     "虚拟内存（建议挪到D盘）",
+     "系统属性→高级→性能设置→高级→虚拟内存→C设无、D设系统管理→重启"),
+    (r"C:\swapfile.sys",
+     "UWP应用交换文件",
+     "关闭hiberfil后通常自动消失"),
+    (r"C:\Windows\Installer",
+     "MSI安装缓存（孤儿文件多则可清几GB）",
+     "下载 PatchCleaner（官方工具）→ 扫描 → 移动孤儿文件到D盘"),
+    (r"C:\Windows.old",
+     "旧系统升级备份（10-30GB）",
+     "搜索栏输'磁盘清理'→选C盘→点'清理系统文件'→勾'以前的Windows安装'"),
+]
+
+
 # 绝对不能碰的目录
 PROTECTED = [
     r"C:\Windows\System32",
@@ -187,6 +208,87 @@ def scan_tencent_cache():
     return results
 
 
+def scan_system_bloat():
+    """扫描系统级大头（hiberfil/pagefile/Windows.old等），返回 (path, size_mb, desc, action)"""
+    results = []
+    for path, desc, action in SYSTEM_BLOAT:
+        if not os.path.exists(path):
+            continue
+        try:
+            if os.path.isfile(path):
+                size = os.path.getsize(path) / (1024 * 1024)
+            else:
+                size = get_dir_size(path)
+            if size > 1:
+                results.append((path, size, desc, action))
+        except (OSError, PermissionError):
+            # 权限不足读不到大小（如pagefile被系统锁），仍标记存在
+            results.append((path, 0, desc + "（权限不足，无法读取大小，请管理员运行）", action))
+    return results
+
+
+def scan_wsl_docker():
+    """扫描WSL发行版和Docker WSL镜像（ext4.vhdx只增不减）"""
+    results = []
+    packages_dir = os.path.expanduser(r"~\AppData\Local\Packages")
+    distro_keywords = ("Canonical", "Ubuntu", "Debian", "Kali", "openSUSE", "SUSE", "Oracle", "Alpine")
+    if os.path.exists(packages_dir):
+        try:
+            for d in os.listdir(packages_dir):
+                if any(k in d for k in distro_keywords):
+                    vhdx = os.path.join(packages_dir, d, "LocalState", "ext4.vhdx")
+                    if os.path.exists(vhdx):
+                        try:
+                            size = os.path.getsize(vhdx) / (1024 * 1024)
+                            action = (f"管理员PowerShell运行：\n"
+                                      f"             wsl --shutdown\n"
+                                      f"             Optimize-VHD -Path '{vhdx}' -Mode Full")
+                            results.append((vhdx, size, f"WSL镜像 ({d})", action))
+                        except (OSError, PermissionError):
+                            pass
+        except (OSError, PermissionError):
+            pass
+
+    docker_candidates = [
+        os.path.expanduser(r"~\AppData\Local\Docker\wsl\data\ext4.vhdx"),
+        os.path.expanduser(r"~\AppData\Local\Docker\wsl\disk\docker_data.vhdx"),
+    ]
+    for vhdx in docker_candidates:
+        if os.path.exists(vhdx):
+            try:
+                size = os.path.getsize(vhdx) / (1024 * 1024)
+                action = "Docker Desktop → Settings → Resources → 'Clean / Purge data'，或重置Docker"
+                results.append((vhdx, size, "Docker WSL镜像", action))
+            except (OSError, PermissionError):
+                pass
+    return results
+
+
+def scan_onedrive():
+    """扫描OneDrive本地缓存（个人版+企业版）"""
+    results = []
+    user_home = os.path.expanduser("~")
+    candidates = []
+    od_personal = os.path.join(user_home, "OneDrive")
+    if os.path.exists(od_personal):
+        candidates.append((od_personal, "OneDrive个人版本地缓存"))
+    try:
+        for d in os.listdir(user_home):
+            if d.startswith("OneDrive -") or d.startswith("OneDrive-"):
+                full = os.path.join(user_home, d)
+                if os.path.isdir(full):
+                    candidates.append((full, f"OneDrive企业版本地缓存 ({d})"))
+    except (OSError, PermissionError):
+        pass
+
+    action = "右键OneDrive文件夹 → 选'释放空间'，本地副本删除，文件保留在云端"
+    for path, desc in candidates:
+        size = get_dir_size(path)
+        if size > 100:
+            results.append((path, size, desc, action))
+    return results
+
+
 def print_header(text):
     print(f"\n{'='*60}")
     print(f"  {text}")
@@ -290,6 +392,22 @@ def main():
     else:
         print("  未发现超过100MB的文件")
 
+    # ====== 第四阶段：扫描系统级大头（C盘膨胀真凶） ======
+    print_header("阶段4：扫描系统级大头（盲区，需专门处理）")
+    print("  扫描中，请稍候...")
+
+    system_bloat = scan_system_bloat() + scan_wsl_docker() + scan_onedrive()
+    total_bloat = sum(s for _, s, _, _ in system_bloat)
+    if system_bloat:
+        for path, size, desc, action in system_bloat:
+            shown = format_size(size) if size > 0 else "  ?  "
+            print(f"  [{shown:>8}] {desc}")
+            print(f"            {path}")
+        print(f"\n  >>> 系统级大头总计：{format_size(total_bloat)}")
+        print(f"  注意：这些文件不能直接删，每条对应专门处理方法（详见报告）")
+    else:
+        print("  未发现系统级大头（恭喜，系统状态健康）")
+
     # ====== 操作阶段 ======
     print_header("操作菜单")
     print(f"""
@@ -331,6 +449,18 @@ def main():
             f.write("【大文件列表】\n")
             for fp, size in large_files:
                 f.write(f"  {format_size(size):>8} | {fp}\n")
+            f.write("\n")
+            f.write("【系统级大头（C盘膨胀真凶，需专门处理）】\n")
+            if system_bloat:
+                for path, size, desc, action in system_bloat:
+                    shown = format_size(size) if size > 0 else "未知大小"
+                    f.write(f"  {shown:>8} | {desc}\n")
+                    f.write(f"           路径: {path}\n")
+                    f.write(f"           处理: {action}\n\n")
+                f.write(f"  小计：{format_size(total_bloat)}\n")
+                f.write(f"  说明：以上文件不可直接删除，按每条'处理'方法逐项操作\n")
+            else:
+                f.write("  未发现\n")
         print(f"\n  报告已保存到：{report_path}")
         print(f"  （和本程序在同一个文件夹里）")
         input("\n按回车退出...")
